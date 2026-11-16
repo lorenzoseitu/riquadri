@@ -2,7 +2,7 @@
 
 App per Mac che ordina la scrivania in riquadri. Ogni riquadro è una cartella vera: i file che trascini dentro spariscono dalla scrivania e restano raggiungibili con un clic.
 
-Nessun limite sul numero di riquadri, nessun abbonamento, nessuna raccolta dati, nessuna connessione a internet.
+Nessun limite sul numero di riquadri, nessun abbonamento, nessuna raccolta dati. L'unica connessione a internet è il controllo degli aggiornamenti su GitHub.
 
 ## Cosa fa
 
@@ -33,6 +33,10 @@ xattr -dr com.apple.quarantine /Applications/Riquadri.app
 ```
 
 Al primo trascinamento macOS chiede il permesso di accedere a Scrivania e Documenti: va concesso, altrimenti i file non si spostano.
+
+## Aggiornamenti
+
+Dalla versione 1.3 l'app cerca da sola la versione nuova all'avvio e chiede se installarla. Si può anche controllare a mano dall'icona nella barra dei menu → **Controlla aggiornamenti…**. Le versioni precedenti alla 1.3 vanno aggiornate una volta a mano, riscaricando lo zip.
 
 ## Come si usa
 

@@ -19,12 +19,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         voceLogin.target = self
         menu.addItem(voceLogin)
+        menu.addItem(withTitle: "Controlla aggiornamenti…", action: #selector(controllaAggiornamenti), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Esci da Riquadri", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         voceBarra.menu = menu
 
         for riquadro in Archivio.shared.riquadri { apri(riquadro) }
         if Archivio.shared.riquadri.isEmpty { nuovoRiquadro() }
+
+        // All'avvio cerca in silenzio una versione nuova; avvisa una sola volta per versione.
+        let subito = CommandLine.arguments.contains("--installa-aggiornamento")
+        DispatchQueue.main.asyncAfter(deadline: .now() + (subito ? 0.5 : 5)) {
+            Aggiornamento.controlla(manuale: false, senzaChiedere: subito)
+        }
+    }
+
+    @objc private func controllaAggiornamenti() {
+        Aggiornamento.controlla(manuale: true)
     }
 
     func menuWillOpen(_ menu: NSMenu) {

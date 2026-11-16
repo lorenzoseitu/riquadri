@@ -8,7 +8,7 @@ Nessun limite sul numero di riquadri, nessun abbonamento, nessuna raccolta dati,
 
 - Riquadri sulla scrivania, sotto le finestre, visibili in tutti gli Spazi
 - Schede dentro ogni riquadro
-- Trascinamento dei file dentro e fuori
+- Trascinamento dei file dentro e fuori, anche sopra una cartella del riquadro per spostarli lì dentro
 - Colore di sfondo diverso per ogni riquadro
 - Ordinamento per nome, tipo, data di modifica, data di creazione, dimensione
 - Quick Look con la barra spaziatrice, rinomina con Invio, cestino con Cmd+Backspace

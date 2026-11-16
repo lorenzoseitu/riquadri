@@ -41,12 +41,16 @@ final class CellaFile: NSCollectionViewItem {
         view = v
     }
 
-    override var isSelected: Bool {
-        didSet {
-            view.layer?.backgroundColor = isSelected
-                ? NSColor.controlAccentColor.withAlphaComponent(0.35).cgColor
-                : NSColor.clear.cgColor
-        }
+    override var isSelected: Bool { didSet { aggiornaSfondo() } }
+    // Si accende quando un file trascinato passa sopra questa cartella.
+    override var highlightState: NSCollectionViewItem.HighlightState { didSet { aggiornaSfondo() } }
+
+    private func aggiornaSfondo() {
+        let colore: NSColor
+        if highlightState == .asDropTarget { colore = NSColor.controlAccentColor.withAlphaComponent(0.6) }
+        else if isSelected { colore = NSColor.controlAccentColor.withAlphaComponent(0.35) }
+        else { colore = .clear }
+        view.layer?.backgroundColor = colore.cgColor
     }
 
     func configura(url: URL) {
@@ -228,12 +232,36 @@ final class GrigliaFile: NSObject, NSCollectionViewDataSource, NSCollectionViewD
     func collectionView(_ cv: NSCollectionView, validateDrop info: NSDraggingInfo,
                         proposedIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
                         dropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>) -> NSDragOperation {
-        operazione(per: info)
+        // Sopra una cartella: il file ci finisce dentro.
+        let punto = cv.convert(info.draggingLocation, from: nil)
+        if let ip = cv.indexPathForItem(at: punto), ip.item < file.count,
+           cartellaVera(file[ip.item]), !trascinati(info).contains(file[ip.item].standardizedFileURL) {
+            proposedIndexPath.pointee = ip as NSIndexPath
+            dropOperation.pointee = .on
+            return .move
+        }
+        dropOperation.pointee = .before
+        return operazione(per: info)
+    }
+
+    private func cartellaVera(_ url: URL) -> Bool {
+        let v = try? url.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey])
+        return v?.isDirectory == true && v?.isPackage != true
+    }
+
+    private func trascinati(_ info: NSDraggingInfo) -> [URL] {
+        let letti = info.draggingPasteboard.readObjects(
+            forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        return letti.map(\.standardizedFileURL)
     }
 
     func collectionView(_ cv: NSCollectionView, acceptDrop info: NSDraggingInfo,
                         indexPath: IndexPath, dropOperation: NSCollectionView.DropOperation) -> Bool {
-        accetta(info)
+        if dropOperation == .on, indexPath.item < file.count, cartellaVera(file[indexPath.item]) {
+            return importa(trascinati(info), in: file[indexPath.item])
+        }
+        if (info.draggingSource as? VistaGriglia) === vista { return false }
+        return accetta(info)
     }
 
     func operazione(per info: NSDraggingInfo) -> NSDragOperation {
@@ -247,17 +275,17 @@ final class GrigliaFile: NSObject, NSCollectionViewDataSource, NSCollectionViewD
         return importa(letti)
     }
 
-    /// Sposta i file nella cartella della scheda.
+    /// Sposta i file nella cartella della scheda, o in `destinazione` se indicata.
     @discardableResult
-    func importa(_ sorgenti: [URL]) -> Bool {
-        guard let cartella, !sorgenti.isEmpty else { return false }
+    func importa(_ sorgenti: [URL], in destinazione: URL? = nil) -> Bool {
+        guard let cartella = destinazione ?? self.cartella, !sorgenti.isEmpty else { return false }
         let fm = FileManager.default
         var falliti: [String] = []
         for sorgente in sorgenti {
             let origine = sorgente.standardizedFileURL
             if origine.deletingLastPathComponent().path == cartella.standardizedFileURL.path { continue }
             // Mai spostare una cartella dentro se stessa.
-            if cartella.standardizedFileURL.path.hasPrefix(origine.path + "/") { continue }
+            if (cartella.standardizedFileURL.path + "/").hasPrefix(origine.path + "/") { continue }
             let destinazione = Archivio.urlLibero(in: cartella, nome: origine.lastPathComponent)
             do { try fm.moveItem(at: origine, to: destinazione) }
             catch { falliti.append("\(origine.lastPathComponent): \(error.localizedDescription)") }

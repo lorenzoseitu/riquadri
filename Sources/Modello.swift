@@ -36,6 +36,8 @@ struct Riquadro: Codable {
     var schedaAttiva = 0
     /// Nome del colore di sfondo (vedi `Tinta`); nil = predefinito.
     var colore: String?
+    /// true = ridotto a una striscia con i soli nomi delle schede. x, y e altezza descrivono sempre il riquadro aperto.
+    var ridotto: Bool?
 
     var frame: NSRect { NSRect(x: x, y: y, width: larghezza, height: altezza) }
     var url: URL { URL(fileURLWithPath: cartella, isDirectory: true) }

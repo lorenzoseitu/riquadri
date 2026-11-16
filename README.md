@@ -13,6 +13,7 @@ Nessun limite sul numero di riquadri, nessun abbonamento, nessuna raccolta dati,
 - Ordinamento per nome, tipo, data di modifica, data di creazione, dimensione
 - Quick Look con la barra spaziatrice, rinomina con Invio, cestino con Cmd+Backspace
 - Doppio clic sullo sfondo per aprire la cartella nel Finder
+- Riduzione del riquadro a una striscia con il solo nome
 - Blocco della posizione e avvio all'accensione del Mac
 
 ## Installazione
@@ -38,6 +39,7 @@ Al primo trascinamento macOS chiede il permesso di accedere a Scrivania e Docume
 - L'icona a griglia nella barra dei menu crea un **Nuovo riquadro**
 - **+** aggiunge una scheda, il doppio clic sul nome la rinomina
 - **⋯** apre il menu del riquadro: colore, ordinamento, blocco, eliminazione
+- La freccia accanto a **⋯**, o il doppio clic sulla barra, riduce il riquadro a una striscia e lo riapre
 - I file stanno in `Documenti/Riquadri`, una cartella per riquadro con il nome della prima scheda. La posizione si cambia da **Sposta la cartella dei file…**
 - Eliminare un riquadro o una scheda non cancella i file
 

@@ -53,11 +53,22 @@ final class BarraSchede: NSView {
     var allAggiunta: (() -> Void)?
     var menuScheda: ((Int) -> NSMenu?)?
     var menuRiquadro: (() -> NSMenu)?
+    var allaRiduzione: (() -> Void)?
     var bloccato = false
+    /// Riquadro ridotto a striscia: resta solo il nome, sparisce il "+".
+    var ridotto = false {
+        didSet {
+            piu.isHidden = ridotto
+            riduci.image = NSImage(systemSymbolName: ridotto ? "chevron.down" : "chevron.up",
+                                   accessibilityDescription: nil)
+            riduci.toolTip = ridotto ? "Apri il riquadro" : "Riduci a striscia"
+        }
+    }
 
     private let pila = NSStackView()
     private let piu = NSButton()
     private let altro = NSButton()
+    private let riduci = NSButton()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -68,6 +79,7 @@ final class BarraSchede: NSView {
 
         configura(piu, simbolo: "plus", descrizione: "Nuova scheda", azione: #selector(premutoPiu))
         configura(altro, simbolo: "ellipsis", descrizione: "Menu del riquadro", azione: #selector(premutoAltro))
+        configura(riduci, simbolo: "chevron.up", descrizione: "Riduci a striscia", azione: #selector(premutoRiduci))
 
         NSLayoutConstraint.activate([
             pila.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
@@ -76,7 +88,9 @@ final class BarraSchede: NSView {
             piu.centerYAnchor.constraint(equalTo: centerYAnchor),
             altro.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             altro.centerYAnchor.constraint(equalTo: centerYAnchor),
-            piu.trailingAnchor.constraint(lessThanOrEqualTo: altro.leadingAnchor, constant: -6),
+            riduci.trailingAnchor.constraint(equalTo: altro.leadingAnchor, constant: -2),
+            riduci.centerYAnchor.constraint(equalTo: centerYAnchor),
+            piu.trailingAnchor.constraint(lessThanOrEqualTo: riduci.leadingAnchor, constant: -6),
         ])
     }
 
@@ -106,6 +120,7 @@ final class BarraSchede: NSView {
     }
 
     @objc private func premutoPiu() { allAggiunta?() }
+    @objc private func premutoRiduci() { allaRiduzione?() }
 
     @objc private func premutoAltro() {
         guard let menu = menuRiquadro?() else { return }
@@ -113,7 +128,9 @@ final class BarraSchede: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        if !bloccato { window?.performDrag(with: event) }
+        // Doppio clic sulla barra: riduce a striscia o riapre.
+        if event.clickCount == 2 { allaRiduzione?() }
+        else if !bloccato { window?.performDrag(with: event) }
     }
 
     override func menu(for event: NSEvent) -> NSMenu? { menuRiquadro?() }

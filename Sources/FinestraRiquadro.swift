@@ -33,6 +33,7 @@ final class ControlloreRiquadro: NSObject, NSWindowDelegate {
     private let griglia = GrigliaFile()
     private let vuoto = NSTextField(labelWithString: "Trascina qui i file")
     private let tinta = NSView()
+    private var inAnimazione = false
     var allaEliminazione: ((UUID) -> Void)?
 
     private var archivio: Archivio { .shared }
@@ -41,6 +42,7 @@ final class ControlloreRiquadro: NSObject, NSWindowDelegate {
         set { archivio.riquadri[archivio.indice(id)!] = newValue; archivio.salva() }
     }
 
+    static let altezzaStriscia: CGFloat = 32
     static let livello = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1)
 
     init(riquadro: Riquadro) {
@@ -86,15 +88,18 @@ final class ControlloreRiquadro: NSObject, NSWindowDelegate {
         sfondo.addSubview(griglia.scorrimento)
         sfondo.addSubview(vuoto)
         sfondo.addSubview(barra)
+        let fondo = griglia.scorrimento.bottomAnchor.constraint(equalTo: sfondo.bottomAnchor, constant: -4)
+        // Priorità sotto quella della finestra: da ridotto la griglia non deve allargare la striscia.
+        fondo.priority = NSLayoutConstraint.Priority(450)
         NSLayoutConstraint.activate([
             barra.topAnchor.constraint(equalTo: sfondo.topAnchor),
             barra.leadingAnchor.constraint(equalTo: sfondo.leadingAnchor),
             barra.trailingAnchor.constraint(equalTo: sfondo.trailingAnchor),
-            barra.heightAnchor.constraint(equalToConstant: 32),
+            barra.heightAnchor.constraint(equalToConstant: Self.altezzaStriscia),
             griglia.scorrimento.topAnchor.constraint(equalTo: barra.bottomAnchor),
             griglia.scorrimento.leadingAnchor.constraint(equalTo: sfondo.leadingAnchor),
             griglia.scorrimento.trailingAnchor.constraint(equalTo: sfondo.trailingAnchor),
-            griglia.scorrimento.bottomAnchor.constraint(equalTo: sfondo.bottomAnchor, constant: -4),
+            fondo,
             vuoto.centerXAnchor.constraint(equalTo: griglia.scorrimento.centerXAnchor),
             vuoto.centerYAnchor.constraint(equalTo: griglia.scorrimento.centerYAnchor),
         ])
@@ -110,6 +115,7 @@ final class ControlloreRiquadro: NSObject, NSWindowDelegate {
         barra.allAggiunta = { [weak self] in self?.nuovaScheda() }
         barra.menuScheda = { [weak self] i in self?.menuScheda(i) }
         barra.menuRiquadro = { [weak self] in self?.menuRiquadro() ?? NSMenu() }
+        barra.allaRiduzione = { [weak self] in self?.cambiaRiduzione() }
 
         NotificationCenter.default.addObserver(
             self, selector: #selector(aggiornaVuoto),
@@ -131,6 +137,7 @@ final class ControlloreRiquadro: NSObject, NSWindowDelegate {
         if r.bloccato { pannello.styleMask.remove(.resizable) }
         else { pannello.styleMask.insert(.resizable) }
         pannello.level = Self.livello
+        applicaRiduzione(r)
         let scheda = r.schede[min(r.schedaAttiva, r.schede.count - 1)]
         let ordine = Ordine(rawValue: scheda.ordine ?? "") ?? .nome
         if griglia.cartella != scheda.url {
@@ -144,7 +151,39 @@ final class ControlloreRiquadro: NSObject, NSWindowDelegate {
     }
 
     @objc private func aggiornaVuoto() {
-        vuoto.isHidden = griglia.vista.numberOfItems(inSection: 0) > 0
+        vuoto.isHidden = riquadro.ridotto == true || griglia.vista.numberOfItems(inSection: 0) > 0
+    }
+
+    /// Porta la finestra all'altezza giusta (striscia o riquadro aperto) tenendo fermo il bordo in alto.
+    private func applicaRiduzione(_ r: Riquadro) {
+        let ridotto = r.ridotto == true
+        barra.ridotto = ridotto
+        griglia.scorrimento.isHidden = ridotto
+        let altezza = ridotto ? Self.altezzaStriscia : CGFloat(r.altezza)
+        if ridotto {
+            // Da ridotto si può cambiare solo la larghezza.
+            pannello.minSize = NSSize(width: 120, height: Self.altezzaStriscia)
+            pannello.maxSize = NSSize(width: 10_000, height: Self.altezzaStriscia)
+        } else {
+            pannello.minSize = NSSize(width: 220, height: 150)
+            pannello.maxSize = NSSize(width: 10_000, height: 10_000)
+        }
+        var f = pannello.frame
+        guard abs(f.height - altezza) > 0.5 else { return }
+        f.origin.y = f.maxY - altezza
+        f.size.height = altezza
+        // L'animazione sposta la finestra a passi: si salva solo la posizione finale.
+        inAnimazione = true
+        pannello.setFrame(f, display: true, animate: true)
+        inAnimazione = false
+        salvaFrame()
+    }
+
+    private func cambiaRiduzione() {
+        var r = riquadro
+        r.ridotto = !(r.ridotto == true)
+        riquadro = r
+        aggiorna()
     }
 
     private func riportaSulloSchermo() {
@@ -157,10 +196,18 @@ final class ControlloreRiquadro: NSObject, NSWindowDelegate {
     }
 
     private func salvaFrame() {
+        guard !inAnimazione else { return }
         let f = pannello.frame
         var r = riquadro
-        r.x = f.origin.x; r.y = f.origin.y
-        r.larghezza = f.width; r.altezza = f.height
+        r.x = f.origin.x
+        r.larghezza = f.width
+        if r.ridotto == true {
+            // Da ridotto l'altezza salvata resta quella del riquadro aperto.
+            r.y = f.maxY - CGFloat(r.altezza)
+        } else {
+            r.y = f.origin.y
+            r.altezza = f.height
+        }
         riquadro = r
     }
 
@@ -282,6 +329,7 @@ final class ControlloreRiquadro: NSObject, NSWindowDelegate {
         elimina.isEnabled = r.schede.count > 1
         menu.addItem(elimina)
         menu.addItem(.separator())
+        menu.addItem(voce(r.ridotto == true ? "Apri il riquadro" : "Riduci a striscia", #selector(azioneRiduci)))
         menu.addItem(voce(r.bloccato ? "Sblocca riquadro" : "Blocca riquadro", #selector(azioneBlocca)))
         menu.addItem(griglia.voceOrdine())
         let colori = NSMenuItem(title: "Colore di sfondo", action: nil, keyEquivalent: "")
@@ -310,6 +358,7 @@ final class ControlloreRiquadro: NSObject, NSWindowDelegate {
     @objc private func azioneNuovaScheda() { nuovaScheda() }
     @objc private func azioneRinomina(_ s: NSMenuItem) { rinominaScheda(s.tag) }
     @objc private func azioneEliminaScheda(_ s: NSMenuItem) { eliminaScheda(s.tag) }
+    @objc private func azioneRiduci() { cambiaRiduzione() }
     @objc private func azioneBlocca() { riquadro.bloccato.toggle(); aggiorna() }
     @objc private func azioneColore(_ s: NSMenuItem) {
         riquadro.colore = s.representedObject as? String
